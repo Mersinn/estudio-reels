@@ -1,3 +1,15 @@
 node_modules
-out
-*.log
+dist
+.DS_Store
+.env
+__pycache__/
+
+# renders de revisão ficam fora; a entrega final (out/entrega) entra no repositório
+out/*
+!out/entrega/
+
+# áudio regenerável (scripts/audio_mix.py) e testes de voz
+public/audio/
+public/vo_cb/
+public/vo_ref/
+public/vo_thalita_edge/
