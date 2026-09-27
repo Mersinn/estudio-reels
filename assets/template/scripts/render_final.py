@@ -15,6 +15,7 @@ os.makedirs(OUT, exist_ok=True)
 NPX = "npx.cmd" if os.name == "nt" else "npx"
 args = sys.argv[1:]
 scale = args[args.index("--escala") + 1] if "--escala" in args else "1"
+NOME = args[args.index("--nome") + 1] if "--nome" in args else "reel_final"
 
 
 def run(cmd, **kw):
@@ -30,14 +31,22 @@ def loudnorm_mux(video, audio, out):
 
 
 t0 = time.time()
+# versões anteriores vão para out/entrega/versoes/ (nunca se perde a v1 ao renderizar a v2)
+for nome in (NOME + ".mp4", NOME + "_trilha.mp4"):
+    atual = os.path.join(OUT, nome)
+    if os.path.exists(atual):
+        arq = os.path.join(OUT, "versoes")
+        os.makedirs(arq, exist_ok=True)
+        carimbo = time.strftime("%Y%m%d-%H%M", time.localtime(os.path.getmtime(atual)))
+        os.replace(atual, os.path.join(arq, nome.replace(".mp4", f"_{carimbo}.mp4")))
 if "--so-capas" not in args:
     silent = os.path.join(ROOT, "out", "reel_sem_audio.mp4")
     run([NPX, "remotion", "render", "Reel", silent, f"--scale={scale}", "--crf=16", "--codec=h264",
          "--pixel-format=yuv420p", "--props={\"audio\":\"none\"}", "--muted"])
-    loudnorm_mux(silent, os.path.join(ROOT, "public", "audio", "mix_sfx.wav"), os.path.join(OUT, "reel_final.mp4"))
+    loudnorm_mux(silent, os.path.join(ROOT, "public", "audio", "mix_sfx.wav"), os.path.join(OUT, NOME + ".mp4"))
     music = os.path.join(ROOT, "public", "audio", "mix_music.wav")
     if os.path.exists(music):
-        loudnorm_mux(silent, music, os.path.join(OUT, "reel_final_trilha.mp4"))
+        loudnorm_mux(silent, music, os.path.join(OUT, NOME + "_trilha.mp4"))
 run([NPX, "remotion", "still", "CapaReel", os.path.join(OUT, "capa_reel.png")])
 run([NPX, "remotion", "still", "CapaGrid", os.path.join(OUT, "capa_grid.png")])
 run([sys.executable, os.path.join(ROOT, "scripts", "make_srt.py")])
