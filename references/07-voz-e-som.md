@@ -1,5 +1,14 @@
 # 07 · Voz e som
 
+## Voz: o caminho atual (set/2026)
+**Gemini TTS via API do Google AI Studio** (chave gratuita em ~/.config/watch/.env): as vozes mais naturais em pt-BR que temos sem custo.
+- `python scripts/gemini_tts.py` gera as falas marcadas `gemini:<Voz>` em `roteiro/falas.py` (VOZES); `python scripts/tts.py` alinha as palavras (faster-whisper), trata e monta o vo.json.
+- Personagens soam "na sala" (filtro SALA em tts.py); a narração é levada a um ritmo único (~2,55 palavras/s, atempo) e volume único.
+- Não aceita instrução de estilo: qualquer instrução no texto é LIDA em voz alta, e systemInstruction é recusado. O tom vem da voz e da pontuação.
+- Cota grátis curta POR MODELO e por dia (~6–12 falas): gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts, gemini-3.1-flash-tts-preview, gemini-2.5-flash-preview-tts. Gere cada PERSONAGEM inteiro num mesmo modelo; confira timbre (F0) e ritmo entre modelos antes de misturar.
+- Vozes usadas: Charon (preceptor), Sulafat (paciente), Leda (estudante). A assinatura do app Google AI Pro NÃO aumenta a cota da API (é outro produto); aumentar = faturamento por uso no AI Studio.
+- Evite a Thalita *Multilingual* do edge-tts em narração longa: troca de sotaque em palavras técnicas. Reserva sem cota: pt-BR-FranciscaNeural com ritmo fixo.
+
 ## Voz: quatro caminhos
 | Caminho | Custo | Qualidade | Quando |
 |---|---|---|---|

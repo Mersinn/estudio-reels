@@ -11,6 +11,11 @@ Uso:
 - gera a narração da demonstração (edge-tts) para o projeto já abrir funcionando
 """
 import argparse, os, shutil, subprocess, sys, importlib.util
+for _f in (sys.stdout, sys.stderr):
+    try:
+        _f.reconfigure(encoding="utf-8")  # console do Windows (cp1252) quebra com setas e acentos
+    except Exception:
+        pass
 
 SKILL = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TEMPLATE = os.path.join(SKILL, "assets", "template")

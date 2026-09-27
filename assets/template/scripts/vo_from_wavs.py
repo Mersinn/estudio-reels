@@ -23,6 +23,41 @@ DATA = os.path.join(ROOT, "src", "data", "vo.json")
 LEAD_IN = 0.35
 PRE, POST = 0.10, 0.28  # margem de áudio antes da 1ª e depois da última palavra
 
+UN = "zero um dois três quatro cinco seis sete oito nove dez onze doze treze quatorze quinze dezesseis dezessete dezoito dezenove".split()
+DEZ = "_ _ vinte trinta quarenta cinquenta sessenta setenta oitenta noventa".split()
+CEM = "_ cento duzentos trezentos quatrocentos quinhentos seiscentos setecentos oitocentos novecentos".split()
+
+
+def por_extenso(n):
+    if n < 20:
+        return UN[n]
+    if n < 100:
+        return DEZ[n // 10] + ("" if n % 10 == 0 else " e " + UN[n % 10])
+    if n == 100:
+        return "cem"
+    if n < 1000:
+        return CEM[n // 100] + ("" if n % 100 == 0 else " e " + por_extenso(n % 100))
+    return str(n)
+
+
+def falado(word):
+    """o Whisper escreve números em algarismos ("42%", "4,9"); o roteiro fala por extenso"""
+    w = word.replace("%", " por cento")
+    w = re.sub(r"(\d),(\d)", lambda m: m.group(1) + " vírgula " + m.group(2), w)
+    return re.sub(r"\d+", lambda m: " " + por_extenso(int(m.group())) + " ", w)
+
+
+def expandir(words):
+    """[(norm, s, e)] com cada palavra numérica aberta em várias, dividindo o tempo dela"""
+    out = []
+    for w in words:
+        parts = [norm(x) for x in falado(w.word).split() if norm(x)]
+        if not parts:
+            continue
+        step = (w.end - w.start) / len(parts)
+        out += [(x, w.start + i * step, w.start + (i + 1) * step) for i, x in enumerate(parts)]
+    return out
+
 
 def align(target, rec):
     """tempo (s, e) de cada palavra do roteiro, a partir das palavras reconhecidas"""
@@ -58,7 +93,7 @@ def main():
         toks = script_tokens(text)
         target = [w for _, ws in toks for w in ws]
         segs, _ = model.transcribe(wav, language="pt", word_timestamps=True, initial_prompt=text)
-        rec = [(norm(w.word), w.start, w.end) for s in segs for w in s.words if norm(w.word)]
+        rec = expandir([w for s in segs for w in s.words])
         if not rec:
             raise SystemExit(f"{lid}: nada reconhecido em {wav}")
         times, sim = align(target, rec)
@@ -88,7 +123,7 @@ def main():
         if flag:
             print(f"          ouvido: {heard}")
         t += speech + pause
-    json.dump({"voice": "chatterbox-multilingual", "total": round(t, 3), "lines": out},
+    json.dump({"voice": "vozes gravadas", "total": round(t, 3), "lines": out},
               open(DATA, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"TOTAL {t:.2f}s  ({round(t * 30)} quadros a 30fps)")
     if ruins:

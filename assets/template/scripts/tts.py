@@ -45,10 +45,61 @@ def duration(path):
     return float(out.strip())
 
 
+# personagens gravados pelo Gemini (scripts/gemini_tts.py): soam "na sala", não no ouvido do espectador
+SALA = {
+    "prec": "highpass=f=90,lowpass=f=7800,aecho=0.8:0.55:28|52:0.16|0.10,volume=-2.5dB",
+    "pac": "highpass=f=110,lowpass=f=5200,aecho=0.8:0.5:24|47:0.20|0.12,volume=-4dB",
+}
+_whisper = None
+RITMO_ALVO = 2.55  # palavras por segundo da narração
+
+
+def gemini_line(lid, text):
+    """alinha as palavras da fala gerada pelo Gemini (faster-whisper) e grava o mp3 tratado"""
+    global _whisper
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from vo_from_wavs import align, expandir
+    from align_recording import script_tokens
+    from faster_whisper import WhisperModel
+    if _whisper is None:
+        _whisper = WhisperModel("small", device="cpu", compute_type="int8")
+    wav = os.path.join(ROOT, "public", "vo_gem", f"{lid}.wav")
+    if not os.path.exists(wav):
+        raise SystemExit(f"{lid}: falta {wav}. Rode python scripts/gemini_tts.py")
+    toks = script_tokens(text)
+    target = [w for _, ws in toks for w in ws]
+    segs, _ = _whisper.transcribe(wav, language="pt", word_timestamps=True, initial_prompt=text)
+    rec = expandir([w for sg in segs for w in sg.words])
+    times, sim = align(target, rec)
+    if sim < 0.8:
+        print(f"  ! {lid}: semelhança {sim:.2f} com o texto: confira a fala")
+    papel = "pac" if lid.startswith("pac") else "prec" if lid.startswith("prec") else "narr"
+    path = os.path.join(VO_DIR, f"{lid}.mp3")
+    tempo = 1.0
+    if papel == "narr":
+        # ritmo único para a voz interna: cada fala é levada (sem mudar o tom) para ~2,55 palavras/s
+        fala = max(0.3, times[-1][1] - times[0][0])
+        if len(target) >= 4:
+            tempo = min(1.12, max(0.9, RITMO_ALVO / (len(target) / fala)))
+        filtro = f"highpass=f=80,acompressor=threshold=-20dB:ratio=2:attack=10:release=120,atempo={tempo:.3f},loudnorm=I=-17:TP=-2"
+    else:
+        filtro = SALA[papel]
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-af", filtro + ",apad=pad_dur=0.25", "-ar", "48000", "-ac", "1", "-q:a", "2", path], check=True)
+    words, k = [], 0
+    for shown, ws in toks:
+        words.append({"w": shown, "s": round(times[k][0] / tempo, 3), "e": round(times[k + len(ws) - 1][1] / tempo, 3)})
+        k += len(ws)
+    return path, words
+
+
 async def synth(lid, text):
+    if getattr(falas, "VOZES", {}).get(lid, "").startswith("gemini:"):
+        return gemini_line(lid, text)
     said, tokens = parse(text)
     rate = getattr(falas, "RITMO", {}).get(lid, getattr(falas, "RITMO_PADRAO", "+0%"))
-    comm = edge_tts.Communicate(said, VOICE, rate=rate, boundary="WordBoundary")
+    # personagens: falas.VOZES = {"id": "pt-BR-AntonioNeural"} troca a voz só naquela fala
+    voz = getattr(falas, "VOZES", {}).get(lid, VOICE)
+    comm = edge_tts.Communicate(said, voz, rate=rate, boundary="WordBoundary")
     path = os.path.join(VO_DIR, f"{lid}.mp3")
     bounds = []
     with open(path, "wb") as f:
