@@ -15,8 +15,9 @@ import { P, pp, twos } from "./kit";
 
 type Sty = "b" | "k" | "i";
 type Tok = { text: string; st: Sty; hl: boolean; s: number };
-type Block = { rows: Tok[][]; from: number; to: number; y: number; dark: boolean };
-export type LegSpec = Record<string, { spec: string; y?: number; tom?: "claro" | "escuro" }>;
+type Block = { rows: Tok[][]; from: number; to: number; y: number; dark: boolean; quem?: string };
+// quem: etiqueta de quem fala (molde "PRECEPTOR ▸" da sutura), quando há diálogo
+export type LegSpec = Record<string, { spec: string; y?: number; tom?: "claro" | "escuro"; quem?: string }>;
 
 const STY: Record<Sty, { family: string; weight: number; size: number; italic?: boolean }> = {
   b: { family: F.impacto, weight: 900, size: 76 },
@@ -30,7 +31,7 @@ const cache = new Map<LegSpec, Block[]>();
 function parse(specs: LegSpec): Block[] {
   if (cache.has(specs)) return cache.get(specs)!;
   const out: Block[] = [];
-  for (const [id, { spec, y = 1455, tom = "claro" }] of Object.entries(specs)) {
+  for (const [id, { spec, y = 1455, tom = "claro", quem }] of Object.entries(specs)) {
     const ln = line(id);
     let wi = 0;
     const blocks = spec.split("||").map((chunk0) => {
@@ -47,7 +48,7 @@ function parse(specs: LegSpec): Block[] {
           return { text: clean(t), st, hl, s: fr(w.s) };
         }),
       );
-      return { rows, from: rows[0][0].s, to: 0, y, dark: (tom === "escuro") !== inv };
+      return { rows, from: rows[0][0].s, to: 0, y, dark: (tom === "escuro") !== inv, quem };
     });
     if (wi !== ln.words.length) throw new Error(`legenda de "${id}": ${wi} palavras, a fala tem ${ln.words.length}`);
     const next = LINES[LINES.findIndex((l) => l.id === id) + 1];
@@ -101,6 +102,11 @@ export const LegendaViva: React.FC<{ spec: LegSpec }> = ({ spec }) => {
   return (
     <AbsoluteFill style={{ pointerEvents: "none", opacity: 1 - out, isolation: "isolate" }}>
       <div style={{ position: "absolute", left: SAFE.left, width: W - SAFE.left - SAFE.right, top: b.y - total / 2, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {b.quem && (
+          <div style={{ marginBottom: 14, background: P.cream, borderRadius: 999, padding: "8px 20px 6px", fontFamily: F.tecnica, fontWeight: 600, fontSize: 26, letterSpacing: "0.12em", textTransform: "uppercase", color: P.ink, boxShadow: "0 8px 20px rgba(15,6,3,.35)" }}>
+            {b.quem} ▸
+          </div>
+        )}
         {rows.map(({ r, k, h }, i) => (
           <div key={i} style={{ height: h * 0.95, display: "flex", alignItems: "flex-end", gap: 20 * k, isolation: "isolate" }}>
             {r.map((t, j) => <Palavra key={j} t={t} g={g} k={k} dark={b.dark} />)}

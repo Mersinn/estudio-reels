@@ -13,7 +13,7 @@ Um sistema para fabricar vídeos verticais com **ideia + autoridade + clareza + 
 |---|---|---|
 | **Método** | este `SKILL.md` + `references/` | as fases, os portões, a psicologia do feed, a direção de arte, as armadilhas |
 | **Motor** | `assets/template/` | projeto Remotion + Three.js que já renderiza: relógio pela narração, legenda em pilha, componentes, voz, som, revisão, render |
-| **Biblioteca** | `assets/biblioteca/` | cenas 3D prontas para adaptar: criatura procedural (peixe), ambiente subaquático, laboratório (cuba), palco com foco cirúrgico, lâmina de tecido que cai e enrola; `suturas/` (pele em corte, cartas, personagens, LegendaViva); `protese/` (avião 3D, saco que explode, implante 3D, personagem de IA em 2.5D, README com receitas) |
+| **Biblioteca** | `assets/biblioteca/` | cenas 3D prontas para adaptar: criatura procedural (peixe), ambiente subaquático, laboratório (cuba), palco com foco cirúrgico, lâmina de tecido que cai e enrola; `rosto/` (filtro em shader na arte, malha facial, luva 3D, arena, bloco de camadas, personagem com boca pela voz); `suturas/` (pele em corte, cartas, personagens, LegendaViva); `protese/` (avião 3D, saco que explode, implante 3D, personagem de IA em 2.5D, README com receitas) |
 | **Pacote de marca** | outra skill (ex.: `lacp-reels`) | cores, fontes, imagens, componentes próprios e decisões da marca, aplicados por cima do motor |
 | **Projeto** | uma pasta por vídeo | roteiro, cenas, áudio e entrega daquele vídeo |
 

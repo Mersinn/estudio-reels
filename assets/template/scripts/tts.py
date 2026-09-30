@@ -18,7 +18,7 @@ import edge_tts  # noqa: E402
 VO_DIR = os.path.join(ROOT, "public", "vo")
 DATA = os.path.join(ROOT, "src", "data", "vo.json")
 VOICE = sys.argv[1] if len(sys.argv) > 1 else falas.VOZ
-LEAD_IN = 0.35
+LEAD_IN = getattr(falas, 'LEAD_IN', 0.35)
 TOKEN = re.compile(r"\{([^|}]+)\|([^}]+)\}|(\S+)")
 
 
@@ -49,9 +49,12 @@ def duration(path):
 SALA = {
     "prec": "highpass=f=90,lowpass=f=7800,aecho=0.8:0.55:28|52:0.16|0.10,volume=-2.5dB",
     "pac": "highpass=f=110,lowpass=f=5200,aecho=0.8:0.5:24|47:0.20|0.12,volume=-4dB",
+    # locutor de arena: sistema de som de ginásio (médios na frente, compressão forte, eco longo do ginásio)
+    "loc": "highpass=f=120,lowpass=f=9000,equalizer=f=2500:t=q:w=1.2:g=4,acompressor=threshold=-24dB:ratio=5:attack=5:release=90,aecho=0.8:0.6:90|170|260:0.22|0.14|0.08,loudnorm=I=-16:TP=-2",
 }
 _whisper = None
-RITMO_ALVO = 2.55  # palavras por segundo da narração
+RITMO_ALVO = getattr(falas, "RITMO_ALVO", 2.55)  # palavras por segundo da narração
+TEMPO_LOC = getattr(falas, "TEMPO_LOC", 1.0)  # locutor de arena: andamento (atempo), timbre preservado
 
 
 def gemini_line(lid, text):
@@ -73,15 +76,18 @@ def gemini_line(lid, text):
     times, sim = align(target, rec)
     if sim < 0.8:
         print(f"  ! {lid}: semelhança {sim:.2f} com o texto: confira a fala")
-    papel = "pac" if lid.startswith("pac") else "prec" if lid.startswith("prec") else "narr"
+    papel = "pac" if lid.startswith("pac") else "prec" if lid.startswith("prec") else "loc" if lid.startswith("loc") else "narr"
     path = os.path.join(VO_DIR, f"{lid}.mp3")
     tempo = 1.0
     if papel == "narr":
         # ritmo único para a voz interna: cada fala é levada (sem mudar o tom) para ~2,55 palavras/s
         fala = max(0.3, times[-1][1] - times[0][0])
         if len(target) >= 4:
-            tempo = min(1.12, max(0.9, RITMO_ALVO / (len(target) / fala)))
+            tempo = min(1.25, max(0.9, RITMO_ALVO / (len(target) / fala)))
         filtro = f"highpass=f=80,acompressor=threshold=-20dB:ratio=2:attack=10:release=120,atempo={tempo:.3f},loudnorm=I=-17:TP=-2"
+    elif papel == "loc":
+        tempo = TEMPO_LOC
+        filtro = f"atempo={tempo:.3f}," + SALA[papel]
     else:
         filtro = SALA[papel]
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-af", filtro + ",apad=pad_dur=0.25", "-ar", "48000", "-ac", "1", "-q:a", "2", path], check=True)

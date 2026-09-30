@@ -63,6 +63,7 @@ if __name__ == "__main__":
     lib.write(os.path.join(OUT, "mix_sfx.wav"), lib.norm(mix, lib.db(-1.5)))
     lib.write(os.path.join(OUT, "sfx_only.wav"), lib.norm(fx, lib.db(-3)))
     music = lib.reverb(lib.pad_music(TOTAL + 1)[:N], 3.0, 0.35)
+    music = np.pad(music, (0, max(0, N - len(music))))[:N]  # arredondamento: mesmo tamanho da voz
     mus = music * lib.db(-22) * (1 - 0.45 * np.clip(venv / (venv.max() + 1e-9) * 4, 0, 1))
     lib.write(os.path.join(OUT, "mix_music.wav"), lib.norm(mix + mus, lib.db(-1.5)))
     print(f"mixagem ok: {TOTAL:.2f}s")
