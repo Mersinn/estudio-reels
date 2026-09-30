@@ -217,12 +217,59 @@ def compress(x, thr_db=-20, ratio=3.0, att=0.005, rel=0.08):
     g_db = np.minimum(0, (thr_db - 20 * np.log10(envl + 1e-9)) * (1 - 1 / ratio))
     return x * 10 ** (g_db / 20)
 
+# cadeia de estúdio medida na voz do ElevenLabs v4 (reels da história e da prótese, LACP-PB, set/2026):
+# excesso em 160–400 Hz, buraco em 2,5–4 kHz, "s" forte em 6–10 kHz. Ligue com CADEIA_VOZ = "elevenlabs" em roteiro/falas.py.
+CADEIA_ELEVENLABS = ",".join([
+    "highpass=f=80:poles=2",                                # tira ronco e graves sem função
+    "equalizer=f=300:t=q:w=1.1:g=-2.5",                     # desembola (região "de caixa")
+    "equalizer=f=3200:t=q:w=1.0:g=3",                        # presença: a voz vem pra frente
+    "equalizer=f=7500:t=q:w=1.4:g=-2",                       # amacia o brilho áspero
+    "deesser=i=0.35:m=0.5:f=0.5",                            # "s" sem chiado
+    "acompressor=threshold=-22dB:ratio=2.5:attack=8:release=90:knee=4",     # 1º estágio: segura os picos
+    "acompressor=threshold=-16dB:ratio=2:attack=30:release=300:knee=6",     # 2º estágio: nivela as frases
+])
+
+
+def filtrar(x, cadeia):
+    """passa o sinal por um filtro do ffmpeg (mono, SR)"""
+    pcm = np.clip(x, -1, 1).astype(np.float32).tobytes()
+    out = subprocess.run(["ffmpeg", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-", "-af", cadeia,
+                          "-f", "f32le", "-ar", str(SR), "-ac", "1", "-"], input=pcm, capture_output=True, check=True).stdout
+    y = np.frombuffer(out, dtype=np.float32).astype(np.float64)
+    return np.pad(y, (0, max(0, len(x) - len(y))))[: len(x)]
+
+
+def sala(x, dec=0.55, wet_db=-19.0, pre=0.016, seed=7):
+    """sala pequena e escura: reflexões iniciais + cauda curta, só entre 300 Hz e 5,5 kHz (não embola nem chia)"""
+    r = np.random.default_rng(seed)
+    n = int(dec * SR)
+    ir = np.zeros(int(pre * SR) + n)
+    for t_, g in [(0.007, 0.55), (0.013, 0.42), (0.019, 0.35), (0.027, 0.28), (0.036, 0.22)]:  # reflexões iniciais
+        ir[int((pre + t_) * SR)] += g * (1 if r.random() > 0.5 else -1)
+    cauda = r.standard_normal(n) * np.exp(-np.arange(n) / (dec / 6.9 * SR))
+    ir[int(pre * SR):] += 0.35 * cauda
+    ir = bp(ir, 300, 5500)
+    w = signal.fftconvolve(x, ir)[: len(x)]
+    w *= np.sqrt(np.mean(x ** 2) / (np.mean(w ** 2) + 1e-12))
+    return x + w * db(wet_db)
+
+
 def voice_track(VO, N):
+    try:
+        import falas  # roteiro/falas.py (audio_mix.py põe roteiro/ no caminho)
+    except ImportError:
+        falas = None
+    sem_voz = set(getattr(falas, "SEM_VOZ", ()))  # falas só na tela: sem áudio
     v = np.zeros(N)
     for l in VO["lines"]:
+        if l["id"] in sem_voz:
+            continue
         x = load_mp3(os.path.join(ROOT, "public", "vo", f"{l['id']}.mp3"))
         s = int(l["audioStart"] * SR)
         v[s:s + len(x)] += x[: max(0, N - s)]
+    if getattr(falas, "CADEIA_VOZ", "") == "elevenlabs":
+        v = sala(filtrar(v, CADEIA_ELEVENLABS))
+        return norm(v, db(-3))
     v = hp(v, 85)
     # presença suave (+2 dB em 3 kHz) e corpo (+1,5 dB em 180 Hz)
     v = v + 0.26 * bp(v, 2200, 4500) + 0.18 * bp(v, 120, 260)

@@ -13,7 +13,7 @@ Um sistema para fabricar vídeos verticais com **ideia + autoridade + clareza + 
 |---|---|---|
 | **Método** | este `SKILL.md` + `references/` | as fases, os portões, a psicologia do feed, a direção de arte, as armadilhas |
 | **Motor** | `assets/template/` | projeto Remotion + Three.js que já renderiza: relógio pela narração, legenda em pilha, componentes, voz, som, revisão, render |
-| **Biblioteca** | `assets/biblioteca/` | cenas 3D prontas para adaptar: criatura procedural (peixe), ambiente subaquático, laboratório (cuba), palco com foco cirúrgico, lâmina de tecido que cai e enrola |
+| **Biblioteca** | `assets/biblioteca/` | cenas 3D prontas para adaptar: criatura procedural (peixe), ambiente subaquático, laboratório (cuba), palco com foco cirúrgico, lâmina de tecido que cai e enrola; `suturas/` (pele em corte, cartas, personagens, LegendaViva); `protese/` (avião 3D, saco que explode, implante 3D, personagem de IA em 2.5D, README com receitas) |
 | **Pacote de marca** | outra skill (ex.: `lacp-reels`) | cores, fontes, imagens, componentes próprios e decisões da marca, aplicados por cima do motor |
 | **Projeto** | uma pasta por vídeo | roteiro, cenas, áudio e entrega daquele vídeo |
 
@@ -35,7 +35,7 @@ Mostre sempre **o resultado** (arquivo, quadro, vídeo), nunca uma descrição. 
 | 0 | Ativação | checagem real do ambiente (Node, Python, GPU, RAM, pacote de marca) + tese em 5 linhas + ≤3 perguntas | Bash/PowerShell | — | usuário vê o plano |
 | 1 | Evidência | `docs/DOSSIE.md` com taxonomia V/I/N | PubMed MCP, WebSearch/WebFetch, paper-lookup | `02` | todo número tem fonte; dado temporal revalidado |
 | 2 | História e roteiro | `docs/ROTEIRO.md` + `roteiro/falas.py` | — | `01`, `02` | tese clara, lacuna aberta cedo, ≤7 palavras por tela |
-| 3 | Voz | `src/data/vo.json` + `public/vo/` | `scripts/tts.py` ou `scripts/align_recording.py` | `07` | duração-alvo; ouvir as amostras |
+| 3 | Voz | `src/data/vo.json` + `public/vo/` | `scripts/tts.py` (provisória) · `scripts/vo_nova_voz.py` (ElevenLabs no ritmo natural) + `scripts/conferir_voz.py` · `scripts/align_recording.py` (humana) | `07` | duração-alvo; toda fala conferida palavra por palavra |
 | 4 | Direção de arte | 3–5 styleframes numa folha de contato | stills.mjs + sheet.py | `03`, `05` | a estética tem identidade e não parece IA genérica |
 | 5 | Cenas | `src/projeto/` (cenas, legendas, capa) | Remotion, Three.js | `04`, `05`, `06` | folha de contato de todos os atos aprovada |
 | 6 | Som | `roteiro/trilha.py` + mixagem | `scripts/audio_mix.py` | `07` | cada efeito cai no corte/palavra |

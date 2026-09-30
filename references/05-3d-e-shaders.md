@@ -19,6 +19,15 @@ Arquivos de referência em `assets/biblioteca/` (copie para `src/three/` do proj
 - Close-up amplia pixels da textura: não aproxime além de ~⅓ da largura da figura.
 - **Verbos em shader** (VenusRelief do lacp-reels): máscaras em coordenadas uv com borda de ruído fbm, um uniform por estado (`burn`, `cream`, `heal`…), cicatrização por "borda que avança" + "ilhas" de Voronoi.
 
+### 2b. Imagem de personagem em 2.5D (TomadaRelief, biblioteca "protese")
+Para personagens geradas por IA ou fotos: `scripts/ampliar.py` (Real-ESRGAN 4×) → `scripts/profundidade.py` (Depth Anything V2, ONNX) → `TomadaRelief` (plano 220×220 deslocado pela profundidade, câmera com `orbita` pequena, ±0,05). A luz de um objeto (celular) é calculada no shader, mais forte no que está à frente. Movimento grande estica as bordas de profundidade: mantenha a câmera sutil. Para um objeto 3D na mão da personagem, use a tomada 2D e recorte a mão por cima (ver README da biblioteca).
+
+### 2c. Objeto procedural "de verdade" sem modelo externo
+Avião (`Aviao3D`): fuselagem = `LatheGeometry` de um perfil (nariz elíptico, cauda afunilada); asas e empenagem = `ExtrudeGeometry` de um trapézio enflechado com bisel, posicionadas com `Matrix4.makeBasis(envergadura, corda, espessura)`; janelas e faixa = textura desenhada em canvas (lembre que a revolução põe as laterais em u = 0 e 0,5). Saco (`Saco3D`): plano deformado por um perfil de travesseiro; estouro = a frente vira duas metades que abrem pela borda, mais partículas com gravidade, tudo função do quadro.
+
+### 2d. Trocar a arte por uma versão deformada (verbo "com silicone" da Vênus)
+Quando o verbo muda a FORMA da figura, não pinte por cima: gere offline a mesma arte deformada (remapeamento `cv2.remap` com campo suave) e o relevo correspondente, e faça `mix(uMap, uMap2, uVol)` no shader. Efeitos presos a um ponto da figura (o implante) precisam acompanhar o novo centro (o script imprime o uv).
+
 ## 3. Tecido que cai, adere e enrola (SkinSheet.tsx): sem simulação
 - Grade 72×72; cada vértice pousa no relevo (amostra a textura de profundidade no vertex shader).
 - **Queda** analítica: atraso por distância ao centro, easing cúbico, onda senoidal enquanto está no ar.

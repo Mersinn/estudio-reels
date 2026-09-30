@@ -1,7 +1,7 @@
 // <LegendaViva/> · a legenda deste reel (evolução da pilha tipográfica, a partir dos pins de referência):
 //   contraste extremo: itálico editorial pequeno (Playfair 800) contra palavra pesada (Montserrat 900)
 //   entrada com desfoque "em dois" (papel/colagem), palavra-chave com marca-texto dourado (Vox)
-// Sintaxe: blocos "||", linhas " / ", prefixos por palavra:
+// Sintaxe: blocos "||" ("!" no começo do bloco inverte o tom), linhas " / ", prefixos por palavra:
 //   palavra  corpo (pesada 76)   *palavra chave (pesada 124)   _palavra itálico (Playfair 800 64)
 //   =palavra marca-texto (combina: "=*sobe")
 // As palavras seguem a ordem da fala (tempo de vo.json).
@@ -24,7 +24,7 @@ const STY: Record<Sty, { family: string; weight: number; size: number; italic?: 
   i: { family: F.editorial, weight: 800, size: 66, italic: true },
 };
 const MAXW = W - SAFE.left - SAFE.right - 40;
-const clean = (t: string) => t.replace(/[,.:;]+$/g, "");
+const clean = (t: string) => t.replace(/[,.:;]+$/g, "").replace(/~/g, " ");
 
 const cache = new Map<LegSpec, Block[]>();
 function parse(specs: LegSpec): Block[] {
@@ -33,7 +33,10 @@ function parse(specs: LegSpec): Block[] {
   for (const [id, { spec, y = 1455, tom = "claro" }] of Object.entries(specs)) {
     const ln = line(id);
     let wi = 0;
-    const blocks = spec.split("||").map((chunk) => {
+    const blocks = spec.split("||").map((chunk0) => {
+      // "!" no começo do bloco inverte o tom só nele (a cena troca de fundo no meio da fala)
+      const inv = chunk0.trim().startsWith("!");
+      const chunk = inv ? chunk0.trim().slice(1) : chunk0;
       const rows = chunk.trim().split(" / ").map((r) =>
         r.trim().split(/\s+/).map((raw) => {
           let t = raw, hl = false, st: Sty = "b";
@@ -44,7 +47,7 @@ function parse(specs: LegSpec): Block[] {
           return { text: clean(t), st, hl, s: fr(w.s) };
         }),
       );
-      return { rows, from: rows[0][0].s, to: 0, y, dark: tom === "escuro" };
+      return { rows, from: rows[0][0].s, to: 0, y, dark: (tom === "escuro") !== inv };
     });
     if (wi !== ln.words.length) throw new Error(`legenda de "${id}": ${wi} palavras, a fala tem ${ln.words.length}`);
     const next = LINES[LINES.findIndex((l) => l.id === id) + 1];

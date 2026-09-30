@@ -9,6 +9,18 @@
 - Vozes usadas: Charon (preceptor), Sulafat (paciente), Leda (estudante). A assinatura do app Google AI Pro NÃO aumenta a cota da API (é outro produto); aumentar = faturamento por uso no AI Studio.
 - Evite a Thalita *Multilingual* do edge-tts em narração longa: troca de sotaque em palavras técnicas. Reserva sem cota: pt-BR-FranciscaNeural com ritmo fixo.
 
+## Voz final: ElevenLabs Eleven v4 (conta do cliente) · o fluxo que funcionou (LACP, set/2026)
+O usuário gera a voz no ElevenLabs (é a conta dele; você não acessa) e manda o MP3. O vídeo se reajusta à voz.
+1. **Texto para colar** (`docs/ELEVENLABS_V4.md`): o roteiro de `roteiro/falas.py` palavra por palavra, números por extenso, com direção entre colchetes (`[curious, engaging documentary narrator]`, `[dry]`, `[slowest line, warm]`). Na v4 não existe `<break>`: use `[pause]`. Uma geração com o texto inteiro (timbre igual do começo ao fim); fala nova pedida depois vem em arquivo à parte (`public/vo_eleven/<id>.mp3`, com as mesmas configurações).
+2. **Encaixe no ritmo natural:** `VOZ_ARQ=public/vo_eleven/tomada.mp3 VOZ_NOME=... TEMPO=1.06 python scripts/vo_nova_voz.py`. `TEMPO` acelera pelo Rubber Band sem mudar o timbre (6% é imperceptível; o reel da história chegou a ×1,24). Falas que saíram do vídeo mas estão na tomada: `ORDEM_GRAVACAO` + `FORA_DO_VIDEO` em falas.py.
+3. **Conferência obrigatória:** `python scripts/conferir_voz.py` transcreve cada fala recortada e compara com o roteiro. Só siga com todas "ok" ou com diferenças explicadas (grafia de número, "pra/para").
+4. **Mixagem:** `CADEIA_VOZ = "elevenlabs"` em falas.py liga a cadeia de estúdio medida nessa voz (EQ + de-esser + 2 compressores + sala); depois `audio_mix.py` e render.
+O que a v4 faz de errado e como achar (tudo aconteceu no reel da prótese):
+- **Ri** nas direções `[dry]`/`[playful]` e às vezes **repete** a palavra seguinte: o corte antigo (até a próxima palavra) levava o riso e metade do "Não" para o fim da fala anterior → "riso, trava, 'não' repetido". O corte atual termina no primeiro silêncio real.
+- **Inventa palavra** ("ressonância **é** a partir de"): a conferência mostra; meça a energia a cada 10 ms e, se a palavra estiver entre duas pausas, corte com transição de 10 ms (guarde o original). Na dúvida, compare com o reconhecedor rodando numa voz provisória do mesmo texto.
+- **Falso alarme:** fala isolada que começa com plosiva ("Prótese") pode ser ouvida como "A hótese"; confira antes de cortar.
+Instalação (uma vez só): `pip install sherpa-onnx soundfile onnxruntime opencv-python`; modelos em `C:\modelos` (ou `MODELOS=`): `sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` (github.com/k2-fsa/sherpa-onnx → releases asr-models) para reconhecer e Rubber Band 4 (breakfastquay.com/rubberband) para o andamento. No notebook do Emerson já estão lá, junto com os modelos de ampliação (Real-ESRGAN) e profundidade (Depth Anything V2).
+
 ## Voz: quatro caminhos
 | Caminho | Custo | Qualidade | Quando |
 |---|---|---|---|
