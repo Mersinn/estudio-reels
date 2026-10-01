@@ -45,10 +45,30 @@ asr = sherpa_onnx.OfflineRecognizer.from_transducer(encoder=P + "encoder.int8.on
 ARQ = os.environ.get("VOZ_ARQ", "public/vo_eleven/tomada.mp3")
 ORDEM = [lid for lid in getattr(falas, "ORDEM_GRAVACAO", [lid for lid, *_ in falas.LINES]) if lid not in SEM_VOZ]
 FONTES = {lid: (ARQ, ORDEM) for lid in ORDEM}
+# várias vozes (rosto, out/2026): TOMADAS = {"med": "public/vo_eleven/medica.mp3", ...} → cada papel (prefixo do id)
+# tem a sua tomada, na ordem do roteiro
+for papel, arq in getattr(falas, "TOMADAS", {}).items():
+    ordem_p = [lid for lid, *_ in falas.LINES if lid.startswith(papel) and lid not in SEM_VOZ]
+    for lid in ordem_p:
+        FONTES[lid] = (arq, ordem_p)
 for lid, *_ in falas.LINES:  # fala gravada à parte: public/vo_eleven/<id>.mp3
     if lid not in FONTES and lid not in SEM_VOZ:
         FONTES[lid] = (f"public/vo_eleven/{lid}.mp3", [lid])
-TEMPO = float(os.environ.get("TEMPO", "1.0"))
+TEMPO_GERAL = float(os.environ.get("TEMPO", "1.0"))
+TEMPOS = getattr(falas, "TEMPOS", {})  # andamento por papel (prefixo do id): {"med": 1.06, "loc": 1.0}
+def tempo_de(lid):
+    return next((v for k, v in TEMPOS.items() if lid.startswith(k)), TEMPO_GERAL)
+# tratamento por papel (o mesmo da versão aprovada com a voz provisória, em scripts/tts.py): narradora perto do
+# microfone; locutor no som de ginásio; paciente na sala do consultório
+FILTRO_PAPEL = {
+    "med": "highpass=f=80,acompressor=threshold=-20dB:ratio=2:attack=10:release=120,loudnorm=I=-17:TP=-2",
+    "loc": "highpass=f=120,lowpass=f=9000,equalizer=f=2500:t=q:w=1.2:g=4,acompressor=threshold=-24dB:ratio=5:attack=5:release=90,aecho=0.8:0.6:90|170|260:0.22|0.14|0.08,loudnorm=I=-16:TP=-2",
+    "pac": "highpass=f=110,lowpass=f=5200,aecho=0.8:0.5:24|47:0.20|0.12,loudnorm=I=-20:TP=-2",
+}
+def filtro_de(lid):
+    if not getattr(falas, "TOMADAS", None):
+        return None
+    return next((v for k, v in FILTRO_PAPEL.items() if lid.startswith(k)), None)
 _rb_win = os.path.join(M, "rubberband", "rubberband-4.0.0-gpl-executable-windows", "rubberband-r3.exe")
 RB = os.environ.get("RUBBERBAND", _rb_win if os.path.exists(_rb_win) else "rubberband")
 
@@ -222,11 +242,13 @@ def main():
         nf = int(0.012 * sr); y[:nf] *= np.linspace(0, 1, nf); y[-int(0.08 * sr):] *= np.linspace(1, 0, int(0.08 * sr))
         fonte_wav = os.path.join(TMP, f"_vo_{lid}.wav")
         sf.write(fonte_wav, y, sr)
+        TEMPO = tempo_de(lid)
         if abs(TEMPO - 1.0) > 1e-3:
             est = os.path.join(TMP, f"_vo_{lid}_t.wav")
             subprocess.run([RB, "-q", "-3", "-T", f"{TEMPO:.4f}", fonte_wav, est], check=True, capture_output=True)
             fonte_wav = est
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", fonte_wav, "-af", "apad=pad_dur=0.25", "-ar", "48000", "-ac", "1",
+        filtro = (filtro_de(lid) + ",") if filtro_de(lid) else ""
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", fonte_wav, "-af", filtro + "apad=pad_dur=0.25", "-ar", "48000", "-ac", "1",
                         "-b:a", "320k", os.path.join(VO_DIR, f"{lid}.mp3")], check=True)
         words = []
         for k, (shown, _) in enumerate(parse(txt)):
