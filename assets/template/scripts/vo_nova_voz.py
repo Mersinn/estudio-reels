@@ -47,17 +47,23 @@ ORDEM = [lid for lid in getattr(falas, "ORDEM_GRAVACAO", [lid for lid, *_ in fal
 FONTES = {lid: (ARQ, ORDEM) for lid in ORDEM}
 # várias vozes (rosto, out/2026): TOMADAS = {"med": "public/vo_eleven/medica.mp3", ...} → cada papel (prefixo do id)
 # tem a sua tomada, na ordem do roteiro
+# "gemini" = falas soltas, uma por arquivo, em public/vo_gem/<id>.wav (a voz provisória que o Emerson preferiu)
 for papel, arq in getattr(falas, "TOMADAS", {}).items():
     ordem_p = [lid for lid, *_ in falas.LINES if lid.startswith(papel) and lid not in SEM_VOZ]
     for lid in ordem_p:
-        FONTES[lid] = (arq, ordem_p)
+        FONTES[lid] = (f"public/vo_gem/{lid}.wav", [lid]) if arq == "gemini" else (arq, ordem_p)
 for lid, *_ in falas.LINES:  # fala gravada à parte: public/vo_eleven/<id>.mp3
     if lid not in FONTES and lid not in SEM_VOZ:
         FONTES[lid] = (f"public/vo_eleven/{lid}.mp3", [lid])
 TEMPO_GERAL = float(os.environ.get("TEMPO", "1.0"))
 TEMPOS = getattr(falas, "TEMPOS", {})  # andamento por papel (prefixo do id): {"med": 1.06, "loc": 1.0}
-def tempo_de(lid):
-    return next((v for k, v in TEMPOS.items() if lid.startswith(k)), TEMPO_GERAL)
+def tempo_de(lid, n_pal=0, fala=0.0):
+    """andamento do papel; "ritmo:2.9" = leva cada fala a ~2,9 palavras/s (como scripts/tts.py fazia), entre 0,9 e 1,25"""
+    v = next((v for k, v in TEMPOS.items() if lid.startswith(k)), TEMPO_GERAL)
+    if isinstance(v, str) and v.startswith("ritmo:"):
+        alvo = float(v.split(":")[1])
+        return 1.0 if n_pal < 4 or fala <= 0 else min(1.25, max(0.9, alvo / (n_pal / fala)))
+    return v
 # tratamento por papel (o mesmo da versão aprovada com a voz provisória, em scripts/tts.py): narradora perto do
 # microfone; locutor no som de ginásio; paciente na sala do consultório
 FILTRO_PAPEL = {
@@ -242,7 +248,7 @@ def main():
         nf = int(0.012 * sr); y[:nf] *= np.linspace(0, 1, nf); y[-int(0.08 * sr):] *= np.linspace(1, 0, int(0.08 * sr))
         fonte_wav = os.path.join(TMP, f"_vo_{lid}.wav")
         sf.write(fonte_wav, y, sr)
-        TEMPO = tempo_de(lid)
+        TEMPO = tempo_de(lid, sum(len(w) for _, w in parse(txt)), e0 - s0)
         if abs(TEMPO - 1.0) > 1e-3:
             est = os.path.join(TMP, f"_vo_{lid}_t.wav")
             subprocess.run([RB, "-q", "-3", "-T", f"{TEMPO:.4f}", fonte_wav, est], check=True, capture_output=True)
